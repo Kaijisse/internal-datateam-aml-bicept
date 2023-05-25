@@ -1,3 +1,0 @@
-*.sh	    text eol=lf
-sas-viya/** text eol=lf
-application-workloads/sas/** text eol=lf
