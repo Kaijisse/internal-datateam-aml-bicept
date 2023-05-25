@@ -66,18 +66,6 @@ param resourceGroupArray array = [
     name: 'rg-aml-${customerName}-${environmentName}-${locationshortcode}'
     location: location
   }
-  {
-    name: 'rg-monitoring-${customerName}-${environmentName}-${locationshortcode}'
-    location: location
-  }
-  {
-    name: 'rg-acr-${customerName}-${environmentName}-${locationshortcode}'
-    location: location
-  }
-  {
-    name: 'rg-kv-${customerName}-${environmentName}-${locationshortcode}'
-    location: location
-  }
 ]
 
 
@@ -95,7 +83,15 @@ param acrName string = 'acr${customerName}${replace(environmentName, '-', '')}${
   'Premium'
   'Standard'
 ])
-param acrSKU string = 'Standard'
+param acrSKU string = 'Premium'
+
+//ctrl click and then it brings you to where you need to go. 
+
+// Application INsights PArameters
+@description('The name of the Azure Application Insights')
+@minLength(5)
+@maxLength(50)
+param applicationInsightsName string = 'applicationInsights${customerName}${replace(environmentName, '-', '')}${locationshortcode}'
 
 // Virtual Networking parameters
 
@@ -112,7 +108,10 @@ var AMLVNetConfiguration = {
         name: 'amlsubnet'
         addressPrefix: '10.100.1.0/24'
       }
-      
+      {
+        name: 'aml-acr-pe-subnet'
+        addressPrefix: '10.100.2.0/24'
+      }     
     ]
   }
 
@@ -167,27 +166,61 @@ module AMLVNet '../modules/Microsoft.Network/virtualNetworks/deploy.bicep' = {
   dependsOn: resourceGroups
 }
 
-output AMLVnet int = AMLVNet.outputs
+//ACRPrivateDNSName parameter
+@description('The name of Storage Account')
+param ACRPrivateDNSName string = 'ACRPrivateDNSName-${customerName}-${environmentName}-${locationshortcode}'
+
+// ctrl space for variables list
 
 
-// Container Registry
+module acrprivateDNS '../modules/Microsoft.Network/privateDnsZones/deploy.bicep'={
+  scope: resourceGroup(resourceGroupArray[2].name)
+  name: ACRPrivateDNSName
+  params:{
+    name: ACRPrivateDNSName
+    location: location
+    virtualNetworkLinks:[{
+      registrationEnabled: true
+      virtualNetworkResourceId: AMLVNet.outputs.resourceId
+  }]
+  }
+  }
+
+
+// Container Registry // 
 module acr '../modules/Microsoft.ContainerRegistry/registries/deploy.bicep' ={
   name: acrName 
   scope: resourceGroup(resourceGroupArray[2].name)
   params: {
     name: acrName 
     location: location
-    acrvnet: AMLVNet.outputs.details
     acrSku: acrSKU
     tags: tags
+    privateEndpoints: [
+      {
+        privateDnsZoneGroup: {
+          privateDNSResourceIds: [
+            acrprivateDNS.outputs.resourceId
+          ]
+        }
+        service: 'registry'
+        subnetResourceId: AMLVNet.outputs.subnetResourceIds[1]
+        }
+      
+    ]
+
   }
 }
 
+
+
 // Application Insights
-module ai '../modules/Microsoft.Insights/components/deploy.bicep' = {
-  name: 'ai-deployment'
+module applicationInsights '../modules/Microsoft.Insights/components/deploy.bicep' = {
+  name: applicationInsightsName
+  scope: resourceGroup(resourceGroupArray[2].name)
   params:{
-    name: 'ai-${baseResourceName}-${uniqueSuffix}'
+    name: applicationInsightsName
+    location: location
     workspaceResourceId:workspace.outputs.id
     tags: tags
   }
@@ -218,6 +251,8 @@ module KeyVault '../modules/Microsoft.KeyVault/vaults/deploy.bicep' = [for (keyV
   }
   dependsOn: resourceGroups
 }]
+
+
 
 
 // ML Workspace
