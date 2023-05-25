@@ -174,7 +174,7 @@ param ACRPrivateDNSName string = 'ACRPrivateDNSName-${customerName}-${environmen
 
 
 module acrprivateDNS '../modules/Microsoft.Network/privateDnsZones/deploy.bicep'={
-  scope: resourceGroup(resourceGroupArray[2].name)
+  scope: resourceGroup(resourceGroupArray[0].name)
   name: ACRPrivateDNSName
   params:{
     name: ACRPrivateDNSName
@@ -190,7 +190,7 @@ module acrprivateDNS '../modules/Microsoft.Network/privateDnsZones/deploy.bicep'
 // Container Registry // 
 module acr '../modules/Microsoft.ContainerRegistry/registries/deploy.bicep' ={
   name: acrName 
-  scope: resourceGroup(resourceGroupArray[2].name)
+  scope: resourceGroup(resourceGroupArray[0].name)
   params: {
     name: acrName 
     location: location
@@ -217,7 +217,7 @@ module acr '../modules/Microsoft.ContainerRegistry/registries/deploy.bicep' ={
 // Application Insights
 module applicationInsights '../modules/Microsoft.Insights/components/deploy.bicep' = {
   name: applicationInsightsName
-  scope: resourceGroup(resourceGroupArray[2].name)
+  scope: resourceGroup(resourceGroupArray[0].name)
   params:{
     name: applicationInsightsName
     location: location
@@ -228,7 +228,7 @@ module applicationInsights '../modules/Microsoft.Insights/components/deploy.bice
 
 // Storage
 module storage '../modules/Microsoft.Storage/storageAccounts/deploy.bicep' = {
-  scope: resourceGroup(resourceGroupArray[2].name)
+  scope: resourceGroup(resourceGroupArray[0].name)
   name: SAName
   params:{
     name: SAName
@@ -240,7 +240,7 @@ module storage '../modules/Microsoft.Storage/storageAccounts/deploy.bicep' = {
 
 // Deploy required Key Vaults
 module KeyVault '../modules/Microsoft.KeyVault/vaults/deploy.bicep' = [for (keyVault, i) in keyVaults: {
-  scope: resourceGroup(resourceGroupArray[3].name)
+  scope: resourceGroup(resourceGroupArray[0].name)
   name: 'keyVault-${i}'
   params: {
     location: location
