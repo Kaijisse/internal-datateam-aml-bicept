@@ -255,19 +255,71 @@ module KeyVault '../modules/Microsoft.KeyVault/vaults/deploy.bicep' = [for (keyV
 
 
 
-// ML Workspace
-module workspace '../modules/Microsoft.MachineLearningServices/workspaces/deploy.bicep' = {
-  name: 'ml-workspace-deployment'
-  params:{
-    workspaceName: 'ws-${baseResourceName}-${uniqueSuffix}'
-    storageId: storage.outputs.storageAccountId
-    appInsightsId: ai.outputs.appInsightsId
-    containerRegistryId: acr.outputs.acrId
-    keyVaultId: keyvault.outputs.keyVaultId
-    vnet: vnet.outputs.details
-    tags: tags
-  }
-}
+// Create an AKS cluster  
+// where to put private endpoint or how does that work with AKS cluster ? what about the container registry? 
+module aks '../modules/Microsoft.ContainerService/managedClusters/deploy.bicep' = {  
+  name: 'aks'  
+  scope: resourceGroup(resourceGroupArray[0].name) 
+  params: {  
+    agentPoolProfiles: [  
+      {  
+        name: 'agentpool'  
+        count: 3  
+        vmSize: 'Standard_DS3_v2'  
+      }  
+    ]  
+    dnsPrefix: 'myaks'  
+    kubernetesVersion: '1.21.2'  
+    location: 'eastus'  
+    nodeResourceGroup: 'aks-nodes'  
+    servicePrincipalClientId: '<service-principal-client-id>'  
+    servicePrincipalClientSecret: '<service-principal-client-secret>'  
+  }  
+}  
+  
+// Create an Azure Machine Learning workspace  
+module workspace '../modules/Microsoft.MachineLearningServices/workspaces/deploy.bicep' = {  
+  name: 'workspace'  
+  scope: resourceGroup(resourceGroupArray[0].name)
+  params: {  
+    location: 'eastus'  
+    sku: {  
+      name: 'basic'  
+    }  
+    containerRegistry: {  
+      id: '<container-registry-id>'  
+    }  
+    keyVault: {  
+      id: '<key-vault-id>'  
+    }  
+    applicationInsights: {  
+      id: '<application-insights-id>'  
+    }  
+    compute: {  
+      name: 'aks-cluster'  
+      type: 'Managed'  
+      properties: {  
+        computeType: 'AKS'  
+        location: 'eastus'  
+        resourceGroup: 'my-rg'  
+        properties: {  
+          agentPoolProfiles: [  
+            {  
+              name: 'agentpool'  
+              count: 3  
+              vmSize: 'Standard_DS3_v2'  
+            }  
+          ]  
+          servicePrincipalClientId: '<service-principal-client-id>'  
+          servicePrincipalClientSecret: '<service-principal-client-secret>'  
+          subnet: {  
+            id: '<subnet-id>'  
+          }  
+        }  
+      }  
+    }  
+  }  
+}  
 
 output workspaceName string = workspace.outputs.name
 output workspaceId string = workspace.outputs.id
